@@ -1,4 +1,7 @@
 # Orders API: local cloud-native introduction
+
+For the current interactive reader path, follow the [seven-step guide](STEP-BY-STEP.md) in one Bash terminal. Its [manual acceptance workflow](.github/workflows/steps-acceptance.yml) executes the exact blocks, with additional checks kept outside the guide. The automated script below remains available as a separate path.
+
 Checked on 2 November 2026 on a standard GitHub-hosted Ubuntu 24.04.5 x86-64 runner: Docker client/server 28.0.4, kind v0.33.0, kubectl and Kubernetes v1.37.0, Python 3.13.18 in the application container. Install Docker, kind and kubectl before starting; allow about 15 minutes. No cloud account is needed.
 
 Save the following block as `session.sh` in this directory, then run `bash session.sh`. Do not source it or paste it into an interactive shell: it relies on script exit for cleanup. Docker's daemon must already work. Cluster discovery must succeed; any existing kind cluster (including `intro`) is explicitly refused. Use this lab exclusively: do not create or replace `intro` concurrently. The session uses its own kubeconfig and arms cleanup only after successful creation.

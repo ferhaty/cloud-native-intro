@@ -1,4 +1,3 @@
-# A teaching example, not a production HTTP server.
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json, os, socket
 
