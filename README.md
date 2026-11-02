@@ -1,19 +1,29 @@
 # Orders API: local cloud-native introduction
 Checked on 2 November 2026 on a standard GitHub-hosted Ubuntu 24.04.5 x86-64 runner: Docker client/server 28.0.4, kind v0.33.0, kubectl and Kubernetes v1.37.0, Python 3.13.18 in the application container. Install Docker, kind and kubectl before starting; allow about 15 minutes. No cloud account is needed.
 
-Run this session in a fresh Bash shell from this directory. It refuses existing kind clusters and uses its own kubeconfig. Cleanup runs on exit, including failure. Docker's daemon must already work; no cloud account is needed.
+Save the following block as `session.sh` in this directory, then run `bash session.sh`. Do not source it or paste it into an interactive shell: it relies on script exit for cleanup. Docker's daemon must already work. Cluster discovery must succeed; any existing kind cluster (including `intro`) is explicitly refused. Use this lab exclusively: do not create or replace `intro` concurrently. The session uses its own kubeconfig and arms cleanup only after successful creation.
 ```bash
 set -euo pipefail
 export KIND_EXPERIMENTAL_PROVIDER=docker
-test -z "$(kind get clusters)" # Stop rather than touch existing labs.
+clusters=$(kind get clusters) || { printf '%s\n' 'Cannot discover kind clusters; stopping.' >&2; exit 1; }
+if [[ -n "$clusters" ]]; then printf 'Refusing existing kind clusters: %s\n' "$clusters" >&2; exit 1; fi
 test ! -e "$PWD/.intro-kubeconfig"
 export KUBECONFIG="$PWD/.intro-kubeconfig"
-cleanup() { kind delete cluster --name intro && rm -f "$KUBECONFIG"; }
-trap cleanup EXIT
+cleanup() {
+  rc=$?
+  if (( rc != 0 )); then
+    k --request-timeout=10s get pods,deployments -o wide || true
+    k --request-timeout=10s get events --sort-by=.lastTimestamp || true
+  fi
+  if ! kind delete cluster --name intro; then printf '%s\n' 'Cleanup failed; inspect intro and retry deletion.' >&2; exit 1; fi
+  rm -f "$KUBECONFIG"
+  exit "$rc"
+}
 k() { kubectl --context kind-intro "$@"; }
 docker build -t orders-api:1.0.0 .
 kind create cluster --name intro --wait 120s \
   --image kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+trap cleanup EXIT # Only a successful creation gives this session ownership.
 kind load docker-image orders-api:1.0.0 --name intro
 k apply -f orders.yaml
 k rollout status deployment/orders --timeout=120s
@@ -30,8 +40,9 @@ k wait --for=condition=Ready pod -l app=orders --timeout=120s
 k rollout status deployment/orders --timeout=120s
 k get pods -l app=orders
 k exec client -- curl -fsS --max-time 5 http://orders/
-cleanup; trap - EXIT
 ```
+
+After a workload error or timeout, the exit trap prints pod/Deployment status and events before deletion; each diagnostic API request has a 10-second timeout and diagnostic failure does not skip cleanup. Capture output with `bash session.sh >session.log 2>&1`, inspect `session.log`, correct the cause, then rerun. A failed creation never arms the deletion trap: inspect `kind get clusters` and `docker ps -a` before any manual action. If creation left a partial lab, confirm it is yours before running `kind delete cluster --name intro` and removing `.intro-kubeconfig`. If deletion fails, the script reports failure and keeps that kubeconfig for inspection/retry. Hard process termination cannot guarantee cleanup. CI uses a disposable VM; the final workflow step verifies cleanup rather than blindly deleting a cluster.
 
 The manifest starts at one replica; scaling makes three. Reapplying it later resets the declared count to one. `imagePullPolicy` is intentionally unset: a non-`latest` tag defaults to `IfNotPresent`, allowing kind's loaded image. `/healthz` returns plain text; `/` returns JSON. This is a teaching HTTP server, not a production API.
 

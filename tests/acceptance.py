@@ -139,10 +139,7 @@ def main():
     for old, new in anchors:
         assert session.count(old) == 1, ('README changed; review test anchors', old)
         session = session.replace(old, new)
-    # Keep the original EXIT trap; collect diagnostics before its cleanup on error.
-    session = session.replace('trap cleanup EXIT',
-        "trap 'rc=$?; if [ $rc -ne 0 ]; then k get pods -A -o wide || true; "
-        "k get events -A --sort-by=.lastTimestamp || true; fi; cleanup' EXIT")
+    # The reader's ownership checks, diagnostics and EXIT trap run unchanged.
     with tempfile.TemporaryDirectory(prefix='intro-acceptance-') as tmp:
         os.environ['INTRO_TEST_STATE'] = str(Path(tmp) / 'state.json')
         script = Path(tmp) / 'session.sh'

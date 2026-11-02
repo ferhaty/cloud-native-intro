@@ -26,16 +26,19 @@ jobs:
           printf '%s  kubectl\n' 6129359f4e1f3848a5572ccb0b26cf28b8ca08cef38c95a765b2f64a2c961a2f | sha256sum -c -
           chmod +x kind kubectl
           printf '%s\n' "$PWD" >> "$GITHUB_PATH"
+      - name: Offline shell safety fault injection
+        run: python3 tests/shell_safety.py
       - name: Execute README with additional acceptance assertions
         run: python3 tests/acceptance.py
-      - name: Safety-net cleanup
+      - name: Verify cleanup without deleting unowned clusters
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           if command -v kind >/dev/null; then
-            kind delete cluster --name intro
-            test -z "$(kind get clusters)"
+            clusters=$(kind get clusters)
+            test -z "$clusters"
           fi
-          rm -f "$GITHUB_WORKSPACE/.intro-kubeconfig"
-          test -z "$(docker ps -aq --filter label=io.x-k8s.kind.cluster=intro)"
+          test ! -e "$GITHUB_WORKSPACE/.intro-kubeconfig"
+          nodes=$(docker ps -aq --filter label=io.x-k8s.kind.cluster=intro)
+          test -z "$nodes"
