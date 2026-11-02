@@ -49,6 +49,9 @@ def ready(count):
 
 
 def requests(pods):
+    print('CLIENT_CURL', k('exec', 'client', '--', 'curl', '--version'), flush=True)
+    client = json.loads(k('get', 'pod', 'client', '-o', 'json'))
+    print('CLIENT_IMAGE_ID', client['status']['containerStatuses'][0]['imageID'], flush=True)
     endpoints = json.loads(k('get', 'endpointslices', '-l',
                             'kubernetes.io/service-name=orders', '-o', 'json'))
     targets = {e['targetRef']['name'] for s in endpoints['items']
@@ -77,6 +80,10 @@ def checkpoint(stage, victim=None):
     if stage == 'one':
         ready(1)
         print('KUBECTL', k('version', '-o', 'json'), flush=True)
+        nodes = json.loads(k('get', 'nodes', '-o', 'json'))['items']
+        print('NODE_INFO', json.dumps([n['status']['nodeInfo'] for n in nodes]), flush=True)
+        print('NODE_IMAGE', run('docker', 'inspect', 'intro-control-plane',
+                               '--format', '{{.Config.Image}} {{.Image}}'), flush=True)
         pod = next(iter(ready(1)))
         print('CONTAINER_PYTHON', k('exec', pod, '--', 'python', '--version'), flush=True)
         print('IMAGE', run('docker', 'image', 'inspect', 'orders-api:1.0.0',
