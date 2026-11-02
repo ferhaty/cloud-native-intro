@@ -180,7 +180,7 @@ When finished, remove only the cluster successfully created in step 2. Run this 
 
 ```shell
 if [[ "${intro_created:-false}" == true ]]; then
-  kind delete cluster --name intro &&
+  kind delete cluster --name intro --kubeconfig "$PWD/.intro-kubeconfig" &&
   rm -f "$PWD/.intro-kubeconfig" &&
   intro_created=false
 else

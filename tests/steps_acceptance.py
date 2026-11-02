@@ -15,6 +15,7 @@ import sys
 import tempfile
 
 import acceptance as checks
+import cleanup_isolation
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -66,6 +67,9 @@ for i in 01 02 03 04 05 06; do
   check_rc=$?
   if (( check_rc != 0 )); then rc=$check_rc; break; fi
 done
+if [[ "$intro_created" == true ]]; then
+  python3 tests/steps_acceptance.py cleanup-preflight || rc=$?
+fi
 printf '\\nREADER_STEP_07_BEGIN ownership=%s\\n' "$intro_created"
 if source "$reader_dir/step-07.sh"; then
   printf 'READER_STEP_07_END ownership=%s\\n' "$intro_created"
@@ -103,8 +107,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix='intro-seven-steps-') as tmp:
         directory = Path(tmp)
         os.environ['INTRO_TEST_STATE'] = str(directory / 'state.json')
+        ambient = cleanup_isolation.prepare(directory, checks)
         path = prepare(directory)
         result = subprocess.run(['bash', '--noprofile', '--norc', str(path)], check=False)
+        cleanup_isolation.after_cleanup(ambient)
     clusters = checks.run('kind', 'get', 'clusters').splitlines()
     assert 'intro' not in clusters
     assert not checks.run('docker', 'ps', '-aq', '--filter', 'label=io.x-k8s.kind.cluster=intro')
@@ -116,7 +122,9 @@ def main():
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        if sys.argv[1] == 'single-http':
+        if sys.argv[1] == 'cleanup-preflight':
+            cleanup_isolation.before_cleanup(ROOT, k, checks)
+        elif sys.argv[1] == 'single-http':
             single_http()
         else:
             checks.checkpoint(*sys.argv[1:])

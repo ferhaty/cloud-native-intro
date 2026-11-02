@@ -1,5 +1,5 @@
 if [[ "${intro_created:-false}" == true ]]; then
-  kind delete cluster --name intro &&
+  kind delete cluster --name intro --kubeconfig "$PWD/.intro-kubeconfig" &&
   rm -f "$PWD/.intro-kubeconfig" &&
   intro_created=false
 else

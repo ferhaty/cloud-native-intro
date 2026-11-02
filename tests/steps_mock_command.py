@@ -46,7 +46,7 @@ elif name == 'kind':
             fail('image load failed')
         state['loaded'] = True
     elif args[:2] == ['delete', 'cluster']:
-        assert args == ['delete', 'cluster', '--name', 'intro']
+        assert args == ['delete', 'cluster', '--name', 'intro', '--kubeconfig', str(Path.cwd() / '.intro-kubeconfig')], 'cleanup must target dedicated kubeconfig'
         assert state['created_here'], 'must never delete a pre-existing cluster'
         if scenario == 'cleanup_failure':
             fail('cluster deletion failed')
